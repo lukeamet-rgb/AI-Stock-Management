@@ -1,0 +1,34 @@
+from fastapi import FastAPI
+from datetime import datetime, timezone
+
+app = FastAPI()
+
+DUMMY_SIGNAL = {}
+
+@app.get("/health")
+def health():
+    return {"ok": True, "time": datetime.now(timezone.utc).isoformat()}
+
+@app.post("/set_dummy_buy")
+def set_buy():
+    global DUMMY_SIGNAL
+    DUMMY_SIGNAL = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "strategy": "Test-Momo",
+        "symbol": "SPY",
+        "action": "BUY",
+        "order_type": "MKT",
+        "risk": {"entry": 500.0, "stop": 495.0, "target": [505.0]},
+        "context": {"note": "dummy buy for pipeline check"}
+    }
+    return {"ok": True}
+
+@app.post("/clear_signal")
+def clear_sig():
+    global DUMMY_SIGNAL
+    DUMMY_SIGNAL = {}
+    return {"ok": True}
+
+@app.get("/next")
+def next_signal():
+    return DUMMY_SIGNAL if DUMMY_SIGNAL else {}
