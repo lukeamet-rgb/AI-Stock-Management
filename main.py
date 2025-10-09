@@ -1,22 +1,40 @@
-from fastapi import FastAPI
-from pydantic import BaseModel
+# main.py
+from fastapi import FastAPI, Request
+from pydantic import BaseModel, Field
 from datetime import datetime
 
-app = FastAPI()
+app = FastAPI(title="Trading Webhooks")
 
-class Alert(BaseModel):
-    time: str
-    code: str
-    details: dict
-    equity: float
-    gross_exposure_pct: float
-    net_exposure_pct: float
-
+# --- health -------------------------------------------------
 @app.get("/health")
 def health():
-    return {"ok": True, "time": datetime.utcnow().isoformat()+"Z"}
+    return {"ok": True}
+
+# --- model for fills ---------------------------------------
+class Fill(BaseModel):
+    timestamp: datetime
+    event: str = Field(..., description="e.g., FILL")
+    broker: str = Field(..., description="QC_IBKR / IBKR / QC")
+    order_id: str
+    symbol: str
+    side: str  # BUY / SELL
+    qty: float
+    avg_price: float
+
+# --- fills webhook -----------------------------------------
+@app.post("/fills")
+async def fills(f: Fill, request: Request):
+    # Minimal ack; you can persist to DB or forward later
+    payload = f.dict()
+    payload["source_ip"] = request.client.host
+    return {"ok": True, "received": payload}
+
+# --- (optional) alerts webhook ------------------------------
+class Alert(BaseModel):
+    timestamp: datetime
+    level: str
+    message: str
 
 @app.post("/alerts")
-def alerts(a: Alert):
-    print("ALERT:", a.model_dump())
-    return {"ok": True, "received_at": datetime.utcnow().isoformat()+"Z"}
+async def alerts(a: Alert):
+    return {"ok": True, "received": a.dict()}
